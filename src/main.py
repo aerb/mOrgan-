@@ -215,5 +215,3 @@ def evaluate_by_sample_rate(item1, item2):
 find_musics(music_root_dir)
 o_file.close()
 log_file.close()
-
-z
