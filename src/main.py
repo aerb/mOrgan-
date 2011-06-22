@@ -10,6 +10,9 @@ import traceback
 import math
 import fileinput
 import mutagen
+import shutil
+import os
+
 from mutagen.easyid3 import EasyID3
 from mutagen.m4a import M4A
 from mutagen.easymp4 import EasyMP4
@@ -29,6 +32,7 @@ log_path = "debugging.log"
 o_file = open(output_path,'w')
 log_file = open(log_path,'w')
 music_root_dir = 'C:\Users\Adam\Documents\\test_dir'
+delete_path = 'delete_me'
 #music_root_dir = "C:\Users\Adam\Music"
 
 morgan_library = {}
@@ -45,9 +49,18 @@ space_regex = re.compile('[ \t]+')
 def delete_stuff(really_delete):
     for line in fileinput.input(output_path):
         if "#>" in line:
-            print line[10:]
+            src = line[10:]
             if really_delete:
-                send2trash.send2trash(line[10:])
+                print "Deleting ", src, "..."
+                try:
+                    send2trash.send2trash(src.replace('\n',''))
+                except:
+                    print "Error: bad delete file."
+                    traceback.print_exc(file=sys.stdout)
+                    
+            else:
+                shutil.move(src, join(delete_path,os.path.basename(src)))
+                
 
 def find_musics(path):
     for i in listdir(path):
@@ -166,10 +179,10 @@ def evaluate_conflicting_items(item1, item2):
         pass
     
     if resolved != None:
-        o_file.write("#> Delete \"%s\"\n" % str(resolved))
+        o_file.write("#> Delete %s\n" % str(resolved))
     else:
         o_file.write("# No best found. Randomly picking ...\n")
-        o_file.write("#> Delete \"%s\"\n" % item2)
+        o_file.write("#> Delete %s\n" % item2)
      
     o_file.write('\n')
 
@@ -215,3 +228,4 @@ def evaluate_by_sample_rate(item1, item2):
 find_musics(music_root_dir)
 o_file.close()
 log_file.close()
+delete_stuff(True)
