@@ -9,6 +9,7 @@ import re
 import traceback
 import math
 import fileinput
+
 import mutagen
 import shutil
 import os
@@ -31,9 +32,12 @@ log_path = "debugging.log"
 
 o_file = open(output_path,'w')
 log_file = open(log_path,'w')
-music_root_dir = 'C:\Users\Adam\Documents\\test_dir'
+#music_root_dir = 'C:\Users\Adam\Documents\\test_dir'
 delete_path = 'delete_me'
 #music_root_dir = "C:\Users\Adam\Music"
+
+music_root_dir = 'C:\\test_folder_music'
+print music_root_dir
 
 morgan_library = {}
 
@@ -45,22 +49,32 @@ the_regex = re.compile('\Athe ')
 and_regex = re.compile('\&')
 dash_regex = re.compile('(?<=[A-Za-z0-9])\-(?=[A-Za-z0-9])')
 space_regex = re.compile('[ \t]+')
+to_delete_regex = re.compile('\"[^\"\r\n]*\"')
 
 def delete_stuff(really_delete):
+    try:
+        os.mkdir(delete_path)
+    except OSError:
+        pass
+    
     for line in fileinput.input(output_path):
-        if "#>" in line:
-            src = line[10:]
-            if really_delete:
-                print "Deleting ", src, "..."
-                try:
-                    send2trash.send2trash(src.replace('\n',''))
-                except:
-                    print "Error: bad delete file."
-                    traceback.print_exc(file=sys.stdout)
-                    
-            else:
-                shutil.move(src, join(delete_path,os.path.basename(src)))
+        if "#> Delete" in line:
+            try:
+                found =  to_delete_regex.search(line)
+                src = found.group()
+                src = src.replace('\"','')
+            except:
+                raise
                 
+            print "deleting file:", src
+            try:
+                if really_delete:
+                    send2trash.send2trash(src)
+                else:                
+                    shutil.move(src, join(delete_path,os.path.basename(src)))
+            except:
+                print "Error: corrupt delete file."
+                traceback.print_exc(file=sys.stdout)   
 
 def find_musics(path):
     for i in listdir(path):
@@ -179,10 +193,10 @@ def evaluate_conflicting_items(item1, item2):
         pass
     
     if resolved != None:
-        o_file.write("#> Delete %s\n" % str(resolved))
+        o_file.write("#> Delete \"%s\"\n" % str(resolved))
     else:
         o_file.write("# No best found. Randomly picking ...\n")
-        o_file.write("#> Delete %s\n" % item2)
+        o_file.write("#> Delete \"%s\"\n" % item2)
      
     o_file.write('\n')
 
@@ -224,8 +238,8 @@ def evaluate_by_sample_rate(item1, item2):
         return item1
     else:
         return None
-                
+
 find_musics(music_root_dir)
 o_file.close()
 log_file.close()
-delete_stuff(True)
+delete_stuff(False)
