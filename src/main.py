@@ -9,11 +9,9 @@ import re
 import traceback
 import math
 import fileinput
+import shutil
 
 import mutagen
-import shutil
-import os
-
 from mutagen.easyid3 import EasyID3
 from mutagen.m4a import M4A
 from mutagen.easymp4 import EasyMP4
@@ -40,6 +38,9 @@ music_root_dir = 'C:\\test_folder_music'
 print music_root_dir
 
 morgan_library = {}
+
+conflict_count = 0
+total_bytes = 0
 
 quiet = True
 strip_the = True
@@ -168,78 +169,115 @@ def evaluate_length(item1,item2):
     return 5 > math.fabs(f1.info.length - f2.info.length)
 
 def evaluate_conflicting_items(item1, item2):
+    global conflict_count
+    global total_bytes
+    
     f1 = mutagen.File(item1)
     f2 = mutagen.File(item2)
     
-    o_file.write("# Conlict Found:\n")
+    conflict_count = conflict_count + 1
+    
+    print "Conflict Found: "
+    print item1
+    print item2
+    
+    o_file.write("\n# Conflict Found:\n")
     o_file.write(item1 + '\n')
     o_file.write(item2 + '\n')
     
     resolved = None
     
-    try:
-        o_file.write("# 1) length: %d, 2) length: %d\n" % (f1.info.length, f2.info.length))
-        resolved = evaluate_by_sample_rate(item1, item2)
-        if resolved == None:
-            resolved = evaluate_by_bit_rate(item1,item2)
-        else:
-            evaluate_by_bit_rate(item1,item2)
-            
-        if resolved == None:
-            resolved = evaluate_by_size(item1,item2)
-        else:
-            evaluate_by_size(item1,item2)
-    except:
-        pass
+    o_file.write("# 1) length: %d, 2) length: %d\n" % (f1.info.length, f2.info.length))
+    resolved = evaluate_by_sample_rate(item1, item2)
+    if resolved == None:
+        resolved = evaluate_by_bit_rate(item1,item2)
+    else:
+        evaluate_by_bit_rate(item1,item2)
+        
+    if resolved == None:
+        resolved = evaluate_by_size(item1,item2)
+    else:
+        evaluate_by_size(item1,item2)
+    
+    if resolved == None:
+        resolved = evaluate_by_string_length(item1,item2)
     
     if resolved != None:
         o_file.write("#> Delete \"%s\"\n" % str(resolved))
     else:
+        resolved = item2
         o_file.write("# No best found. Randomly picking ...\n")
-        o_file.write("#> Delete \"%s\"\n" % item2)
+        o_file.write("#> Delete \"%s\"\n" % resolved)
+    
+    total_bytes = total_bytes + os.path.getsize(resolved)
      
     o_file.write('\n')
+
+def evaluate_by_string_length(item1,item2):
+    #silly, but if files identical delete one with longer string length
+    #this will eliminate "Copy of song.mp3" vs. "song.mp3"
+    
+    if len(item1) > len(item2):
+        return item1
+    elif len(item1) < len(item2):
+        return item2
+    else:
+        return None
 
 def evaluate_by_bit_rate(item1,item2):
     f1 = mutagen.File(item1)
     f2 = mutagen.File(item2)
     
-    o_file.write("# 1) bitrate: %d, 2) bitrate: %d\n" % (f1.info.bitrate, f2.info.bitrate))
-    
-    if f1.info.bitrate > f2.info.bitrate:
-        return item2
-    elif f1.info.bitrate < f2.info.bitrate:
-        return item1
-    else :
+    try:
+        o_file.write("# 1) bitrate: %d, 2) bitrate: %d\n" % (f1.info.bitrate, f2.info.bitrate))
+        if f1.info.bitrate > f2.info.bitrate:
+            return item2
+        elif f1.info.bitrate < f2.info.bitrate:
+            return item1
+        else :
+            return None
+    except:
         return None
 
 def evaluate_by_size(item1,item2):
     f1 = os.path.getsize(item1)
     f2 = os.path.getsize(item2)
     
-    o_file.write("# 1) size: %d, 2) size: %d\n" % (f1, f2))
-    
-    if f1 > f2:
-        return item2
-    elif f1 < f2:
-        return item1
-    else:
+    try:
+        o_file.write("# 1) size: %d, 2) size: %d\n" % (f1, f2))
+        
+        if f1 > f2:
+            return item2
+        elif f1 < f2:
+            return item1
+        else:
+            return None
+    except:
         return None
 
 def evaluate_by_sample_rate(item1, item2):
     f1 = mutagen.File(item1)
     f2 = mutagen.File(item2)
-    
-    o_file.write("# 1) sample_rate: %d, 2) sample_rate: %d\n" % (f1.info.sample_rate, f2.info.sample_rate))
-    
-    if f1.info.sample_rate > f2.info.sample_rate:
-        return item2
-    elif f1.info.sample_rate < f2.info.sample_rate:
-        return item1
-    else:
+    try:
+        o_file.write("# 1) sample_rate: %d, 2) sample_rate: %d\n" % (f1.info.sample_rate, f2.info.sample_rate))
+
+        if f1.info.sample_rate > f2.info.sample_rate:
+            return item2
+        elif f1.info.sample_rate < f2.info.sample_rate:
+            return item1
+        else:
+            return None
+    except:
         return None
 
+def print_final_stats():
+    o_file.write("\n# ================Final Summary=================\n")
+    o_file.write("# Conflicts Found: %d\n" % conflict_count)
+    o_file.write("# Potential Memory Freed: %f Mb\n" % (float(total_bytes)/1000000))
+
 find_musics(music_root_dir)
+print_final_stats()
+
 o_file.close()
 log_file.close()
-delete_stuff(False)
+#delete_stuff(False)
