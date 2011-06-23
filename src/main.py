@@ -11,6 +11,9 @@ import math
 import fileinput
 import shutil
 
+from Tkinter import Tk
+from tkFileDialog import askdirectory
+
 import mutagen
 from mutagen.easyid3 import EasyID3
 from mutagen.m4a import M4A
@@ -275,9 +278,16 @@ def print_final_stats():
     o_file.write("# Conflicts Found: %d\n" % conflict_count)
     o_file.write("# Potential Memory Freed: %f Mb\n" % (float(total_bytes)/1000000))
 
-find_musics(music_root_dir)
+
+#find_musics(music_root_dir)
 print_final_stats()
 
 o_file.close()
 log_file.close()
 #delete_stuff(False)
+
+
+Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
+filename = askdirectory() # show an "Open" dialog box and return the path to the selected file
+print(filename)
+
