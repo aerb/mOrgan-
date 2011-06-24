@@ -39,7 +39,6 @@ delete_path = 'delete_me'
 #music_root_dir = "C:\Users\Adam\Music"
 
 music_root_dir = 'C:\\test_folder_music'
-print music_root_dir
 
 morgan_library = {}
 
@@ -280,15 +279,20 @@ def print_final_stats():
     o_file.write("# Potential Memory Freed: %f Mb\n" % (float(total_bytes)/1000000))
 
 
-#find_musics(music_root_dir)
-print_final_stats()
+def parse_command_line():
+    c_parser.parse_args('-h'.split())
+    #find_musics(music_root_dir)
+    print_final_stats()
+    
+    o_file.close()
+    log_file.close()
+    #delete_stuff(False)
 
-o_file.close()
-log_file.close()
-#delete_stuff(False)
+    Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
+    filename = askdirectory() # show an "Open" dialog box and return the path to the selected file
 
-
-Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
-filename = askdirectory() # show an "Open" dialog box and return the path to the selected file
-print(filename)
+c_parser = argparse.ArgumentParser(description = 'A simple music duplicates eliminator and Music ORGANizer.')
+c_parser.add_argument('Music Directory', help = 'Your root music directory')
+c_parser.add_argument('-d','--delete', action='store_true')
+parse_command_line()
 

@@ -1,2 +1,4 @@
 .project
 .pydevproject
+*.m3u
+*.log
