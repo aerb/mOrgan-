@@ -99,6 +99,7 @@ def find_musics(path):
                 log_file.write("%s\n" % str(sys.exc_info()))
                 traceback.print_exc(file=log_file)
                 log_file.write("\n")
+    print_final_stats()
 
             
 def normalize_track_data(art,alb,name):
@@ -280,19 +281,33 @@ def print_final_stats():
 
 
 def parse_command_line():
-    c_parser.parse_args('-h'.split())
-    #find_musics(music_root_dir)
-    print_final_stats()
+    ns = c_parser.parse_args(''.split())
+    if len(sys.argv) == 1:
+        c_parser.print_help()
+
+    opt = vars(ns)
+    print opt    
+    
+    if opt['evaluate'] == None:
+        Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
+        filename = askdirectory() # show an "Open" dialog box and return the path to the selected file
+   
+#    find_musics(music_root_dir)
     
     o_file.close()
     log_file.close()
     #delete_stuff(False)
 
-    Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
-    filename = askdirectory() # show an "Open" dialog box and return the path to the selected file
 
-c_parser = argparse.ArgumentParser(description = 'A simple music duplicates eliminator and Music ORGANizer.')
-c_parser.add_argument('Music Directory', help = 'Your root music directory')
-c_parser.add_argument('-d','--delete', action='store_true')
+c_parser = argparse.ArgumentParser(description = 'A simple music duplicates eliminator and Music ORGANizer.',
+                                   epilog = 'sihosgih')
+
+c_parser.add_argument('--evaluate','-e', action='store_true' ,help = 'Define the root directory to evaluate duplicates. If no directory is given a folder prompt will be presented later.')
+
+c_parser.add_argument('--delete', '-d', choices = ['trash','purgatory'], help = 'Option tells mOrgan to remove one item for each conflict from the music directory.\n If trash is specified items will be sent trash/recycling bin. If purgatory is specified files will be moved to local folder in working directory which can then be reviewed before manual deletion.')
+c_parser.add_argument('--log', '-l', action='store_true', help = 'Specifies if you would like a log file for debugging purposes.')
+
+
+
 parse_command_line()
 
