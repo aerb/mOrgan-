@@ -10,7 +10,9 @@ import traceback
 import math
 import fileinput
 import shutil
-import argparse
+
+import subprocess
+from xml.etree.ElementTree import Element, dump, SubElement, ElementTree
 
 from Tkinter import Tk
 from tkFileDialog import askdirectory
@@ -31,6 +33,8 @@ from os.path import join
 
 output_path = "conflict_report.m3u"
 log_path = "debugging.log"
+xml_root = Element("root")
+
 
 o_file = open(output_path,'w')
 log_file = open(log_path,'w')
@@ -99,7 +103,6 @@ def find_musics(path):
                 log_file.write("%s\n" % str(sys.exc_info()))
                 traceback.print_exc(file=log_file)
                 log_file.write("\n")
-    print_final_stats()
 
             
 def normalize_track_data(art,alb,name):
@@ -172,50 +175,49 @@ def evaluate_length(item1,item2):
     f2 = mutagen.File(item2)
     return 5 > math.fabs(f1.info.length - f2.info.length)
 
+def item_info(item,type):
+    try:
+        f = mutagen.File(item)
+        if type is 'length':
+            return f.info.length
+        elif type is 'size':
+            return os.path.getsize(item)
+        elif type is 'bitrate':
+            return f.info.bitrate
+        elif type is 'sample_rate':
+            return f.info.sample_rate
+    except IOError:
+        return None
+            
+def item_info_s(item,type):
+    return str(item_info(item,type))
+
 def evaluate_conflicting_items(item1, item2):
     global conflict_count
     global total_bytes
     
-    f1 = mutagen.File(item1)
-    f2 = mutagen.File(item2)
-    
     conflict_count = conflict_count + 1
     
-    print "Conflict Found: "
-    print item1
-    print item2
-    
-    o_file.write("\n# Conflict Found:\n")
-    o_file.write(item1 + '\n')
-    o_file.write(item2 + '\n')
+    xml_conflict = SubElement(xml_root, 'conflict')
+    SubElement(xml_conflict, 'conflict_item',id = '1', location = item1, length = item_info_s(item1,'length'),size = item_info_s(item1,'size'),sample_rate=item_info_s(item1,'sample_rate'),bitrate=item_info_s(item1,'bitrate'))
+    SubElement(xml_conflict, 'conflict_item',id = '2', location = item2, length = item_info_s(item2,'length'),size = item_info_s(item2,'size'),sample_rate=item_info_s(item2,'sample_rate'),bitrate=item_info_s(item2,'bitrate'))
     
     resolved = None
-    
-    o_file.write("# 1) length: %d, 2) length: %d\n" % (f1.info.length, f2.info.length))
     resolved = evaluate_by_sample_rate(item1, item2)
     if resolved == None:
         resolved = evaluate_by_bit_rate(item1,item2)
-    else:
-        evaluate_by_bit_rate(item1,item2)
-        
     if resolved == None:
         resolved = evaluate_by_size(item1,item2)
-    else:
-        evaluate_by_size(item1,item2)
-    
     if resolved == None:
         resolved = evaluate_by_string_length(item1,item2)
-    
-    if resolved != None:
-        o_file.write("#> Delete \"%s\"\n" % str(resolved))
-    else:
+    if resolved == None:
         resolved = item2
-        o_file.write("# No best found. Randomly picking ...\n")
-        o_file.write("#> Delete \"%s\"\n" % resolved)
+    
+    xml_conflict.attrib['resolved']= resolved
+    
+    #TODO: Add define xml_conflict attributes for deletion 
     
     total_bytes = total_bytes + os.path.getsize(resolved)
-     
-    o_file.write('\n')
 
 def evaluate_by_string_length(item1,item2):
     #silly, but if files identical delete one with longer string length
@@ -233,7 +235,6 @@ def evaluate_by_bit_rate(item1,item2):
     f2 = mutagen.File(item2)
     
     try:
-        o_file.write("# 1) bitrate: %d, 2) bitrate: %d\n" % (f1.info.bitrate, f2.info.bitrate))
         if f1.info.bitrate > f2.info.bitrate:
             return item2
         elif f1.info.bitrate < f2.info.bitrate:
@@ -246,9 +247,7 @@ def evaluate_by_bit_rate(item1,item2):
 def evaluate_by_size(item1,item2):
     f1 = os.path.getsize(item1)
     f2 = os.path.getsize(item2)
-    
     try:
-        o_file.write("# 1) size: %d, 2) size: %d\n" % (f1, f2))
         
         if f1 > f2:
             return item2
@@ -263,7 +262,6 @@ def evaluate_by_sample_rate(item1, item2):
     f1 = mutagen.File(item1)
     f2 = mutagen.File(item2)
     try:
-        o_file.write("# 1) sample_rate: %d, 2) sample_rate: %d\n" % (f1.info.sample_rate, f2.info.sample_rate))
 
         if f1.info.sample_rate > f2.info.sample_rate:
             return item2
@@ -274,50 +272,18 @@ def evaluate_by_sample_rate(item1, item2):
     except:
         return None
 
-def print_final_stats():
-    o_file.write("\n# ================Final Summary=================\n")
-    o_file.write("# Conflicts Found: %d\n" % conflict_count)
-    o_file.write("# Potential Memory Freed: %f Mb\n" % (float(total_bytes)/1000000))
-
 
 def were_all_done_here():
     o_file.close()
     log_file.close()
 
-def parse_command_line():
-    ns = c_parser.parse_args(''.split())
-    print ns
-    if len(sys.argv) == 1:
-        c_parser.print_help()
+def open_playlist():
+    if os.name == 'mac':
+        subprocess.call(('open', output_path))
+    elif os.name == 'nt':
+        subprocess.call(('start', output_path), shell=True)
+    elif os.name == 'posix':
+        subprocess.call(('xdg-open', output_path))
 
-    opt = vars(ns)
-    
-    if opt['evaluate'] != 'NADA':
-        if opt['evaluate'] == None:
-            Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
-            filename = askdirectory() # show an "Open" dialog box and return the path to the selected file
-        else:
-            filename = opt['evaluate']
-        
-        find_musics(music_root_dir)
-    
-    if opt['delete'] == 'delete':
-        delete_stuff(True)
-    elif opt['delete'] == 'purgatory':
-        delete_stuff(False)
-    
-    were_all_done_here()
-
-
-c_parser = argparse.ArgumentParser(description = 'A simple music duplicates eliminator and Music ORGANizer.',
-                                   epilog = 'sihosgih')
-
-c_parser.add_argument('--evaluate','-e', metavar='Music-Directory', nargs = '?',default='NADA' ,help = 'Define the root directory to evaluate duplicates. If no directory is given a folder prompt will be presented later.')
-
-c_parser.add_argument('--delete', '-d', choices = ['trash','purgatory'], help = 'Option tells mOrgan to remove one item for each conflict from the music directory.\n If trash is specified items will be sent trash/recycling bin. If purgatory is specified files will be moved to local folder in working directory which can then be reviewed before manual deletion.')
-c_parser.add_argument('--log', '-l', action='store_true', help = 'Specifies if you would like a log file for debugging purposes.')
-
-
-
-parse_command_line()
-
+def write_xml() :
+    ElementTree(xml_root).write("conflicts.xml")
