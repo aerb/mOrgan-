@@ -306,9 +306,9 @@ def parse_command_line():
     
     were_all_done_here()
 
-c_parser = argparse.ArgumentParser(description = 'A simple music duplicates eliminator and Music ORGANizer.', epilog = '')
+c_parser = argparse.ArgumentParser(description = 'A simple music duplicates eliminator and Music Organizer.', epilog = '')
 c_parser.add_argument('--evaluate','-e', metavar='Music-Directory', nargs = '?',default='NADA' ,help = 'Define the root directory to evaluate duplicates. If no directory is given a folder prompt will be presented later.')
-c_parser.add_argument('--delete', '-d', choices = ['trash','putinsomefolder'], help = 'Option tells mOrgan to remove one item for each conflict from the music directory.\n If trash is specified items will be sent trash/recycling bin. If purgatory is specified files will be moved to local folder in working directory which can then be reviewed before manual deletion.')
+c_parser.add_argument('--delete', '-d', choices = ['trash'], help = 'Option tells mOrgan to remove one item for each conflict from the music directory.\n If trash is specified items will be sent trash/recycling bin. If purgatory is specified files will be moved to local folder in working directory which can then be reviewed before manual deletion.')
 c_parser.add_argument('--log', '-l', action='store_true', help = 'Specifies if you would like a log file for debugging purposes.')
 
 parse_command_line()
